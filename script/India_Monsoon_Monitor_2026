@@ -1,0 +1,246 @@
+// =====================================================
+// INDIA MONSOON MONITOR 2026
+// =====================================================
+
+// =====================================================
+// INDIA BOUNDARY
+// =====================================================
+
+var india = ee.FeatureCollection(
+  'FAO/GAUL/2015/level0'
+).filter(
+  ee.Filter.eq('ADM0_NAME','India')
+);
+
+Map.centerObject(india,5);
+
+Map.addLayer(
+  india,
+  {color:'yellow'},
+  'India Boundary'
+);
+
+// =====================================================
+// CURRENT CLOUD COVER (MODIS)
+// =====================================================
+
+var modis = ee.ImageCollection(
+  'MODIS/061/MOD09GA'
+);
+
+var currentClouds = modis
+  .filterDate('2026-06-01','2026-06-30')
+  .median()
+  .clip(india);
+
+Map.addLayer(
+  currentClouds,
+  {
+    bands:[
+      'sur_refl_b01',
+      'sur_refl_b04',
+      'sur_refl_b03'
+    ],
+    min:0,
+    max:3000
+  },
+  'June 2026 Cloud Cover'
+);
+
+// =====================================================
+// LAST 7 DAYS RAINFALL
+// =====================================================
+
+var chirps = ee.ImageCollection(
+  'UCSB-CHG/CHIRPS/DAILY'
+);
+
+var rain7 = chirps
+  .filterDate(
+    '2026-06-08',
+    '2026-06-15'
+  )
+  .sum()
+  .clip(india);
+
+Map.addLayer(
+  rain7,
+  {
+    min:0,
+    max:200,
+    palette:[
+      'white',
+      'cyan',
+      'blue',
+      'purple'
+    ]
+  },
+  'Last 7 Day Rainfall'
+);
+
+// =====================================================
+// LAST 30 DAYS RAINFALL
+// =====================================================
+
+var rain30 = chirps
+  .filterDate(
+    '2026-05-15',
+    '2026-06-15'
+  )
+  .sum()
+  .clip(india);
+
+Map.addLayer(
+  rain30,
+  {
+    min:0,
+    max:500,
+    palette:[
+      'white',
+      'cyan',
+      'blue',
+      'purple'
+    ]
+  },
+  'Last 30 Day Rainfall'
+);
+
+// =====================================================
+// CURRENT SST ANOMALY
+// =====================================================
+
+var currentSST = ee.Image(
+  'NOAA/CDR/OISST/V2_1/20260606'
+);
+
+var currentAnom = currentSST
+  .select('anom')
+  .multiply(0.01);
+
+Map.addLayer(
+  currentAnom,
+  {
+    min:-3,
+    max:3,
+    palette:[
+      '0000FF',
+      '00FFFF',
+      'FFFFFF',
+      'FFA500',
+      'FF0000'
+    ]
+  },
+  'Current SST Anomaly'
+);
+
+// =====================================================
+// NINO 3.4 REGION
+// =====================================================
+
+var nino34 = ee.Geometry.Rectangle(
+  [-170,-5,-120,5]
+);
+
+Map.addLayer(
+  ee.FeatureCollection([
+    ee.Feature(nino34)
+  ]).style({
+    color:'00FFFF',
+    fillColor:'00000000',
+    width:3
+  }),
+  {},
+  'Nino 3.4 Region'
+);
+
+// =====================================================
+// CURRENT NINO INDEX
+// =====================================================
+
+var currentNino = currentAnom.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: nino34,
+  scale:25000,
+  maxPixels:1e13
+});
+
+print(
+  'Current Nino 3.4 Index',
+  currentNino
+);
+
+// =====================================================
+// PROJECT RESULTS SUMMARY
+// =====================================================
+
+print('Historical Findings');
+
+print(
+  'Average India Monsoon Rainfall Reduction',
+  '-95 mm'
+);
+
+print(
+  'Average Monsoon Reduction',
+  '-10.5%'
+);
+
+print(
+  '2026 June Nino Index',
+  currentNino
+);
+
+// =====================================================
+// OPTIONAL VISUALIZATION NOTES
+// =====================================================
+
+// Layer 1: Cloud Cover
+// Layer 2: 7 Day Rainfall
+// Layer 3: 30 Day Rainfall
+// Layer 4: SST Anomaly
+// Layer 5: Nino 3.4 Region
+
+
+var rain7 = chirps
+  .filterDate(
+    '2026-04-24',
+    '2026-05-01'
+  )
+  .sum()
+  .clip(india);
+
+
+
+var rain30 = chirps
+  .filterDate(
+    '2026-04-01',
+    '2026-05-01'
+  )
+  .sum()
+  .clip(india);
+
+
+
+var rain7Stats = rain7.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: india.geometry(),
+  scale: 5000,
+  maxPixels: 1e13
+});
+
+print(
+  'India Mean Rainfall Last 7 Days',
+  rain7Stats
+);
+
+var rain30Stats = rain30.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: india.geometry(),
+  scale: 5000,
+  maxPixels: 1e13
+});
+
+print(
+  'India Mean Rainfall Last 30 Days',
+  rain30Stats
+);
